@@ -1677,8 +1677,11 @@ window.doLogin = async () => {
     currentEmpresa = store.empresas.find(e => e.id === empId) || store.empresas[0] || null;
     enterApp();
   } else {
+    // Salva a empresa escolhida antes do Firebase responder
+    const empId = document.getElementById('login-empresa').value;
+    currentEmpresa = store.empresas.find(e => e.id === empId) || store.empresas[0] || null;
     try { await signInWithEmailAndPassword(auth, email, pass); }
-    catch(e) { toast('Erro: ' + e.message, false); }
+    catch(e) { currentEmpresa = null; toast('Erro: ' + e.message, false); }
   }
 };
 
