@@ -3232,15 +3232,22 @@ async function salvarEmpresasFirestore() {
 async function carregarEmpresasFirestore() {
   if (DEMO_MODE) { populateLoginEmpresas(); return; }
   try {
+    console.log('[FC] Carregando empresas do Firestore...');
     const snap = await getDoc(doc(db, 'config', 'empresas'));
+    console.log('[FC] Documento config/empresas existe?', snap.exists());
     if (snap.exists()) {
       const lista = snap.data().lista || [];
+      console.log('[FC] Empresas encontradas:', lista.length);
       if (lista.length > 0) {
         store.empresas = lista;
         localStorage.setItem('fc_empresas', JSON.stringify(lista));
       }
+    } else {
+      console.warn('[FC] Documento config/empresas ainda não existe no Firestore. Entre no app no computador principal primeiro.');
     }
-  } catch(e) { console.warn('Erro ao carregar empresas:', e); }
+  } catch(e) {
+    console.error('[FC] Erro ao carregar empresas do Firestore:', e.code, e.message);
+  }
   populateLoginEmpresas();
 }
 
