@@ -1902,6 +1902,8 @@ async function enterApp() {
 
   // Sempre sincroniza empresas no Firestore ao entrar (garante que outros dispositivos vejam)
   if (!DEMO_MODE && store.empresas.length > 0) salvarEmpresasFirestore();
+  // Carrega usuários do Firestore (perfis e permissões)
+  await carregarUsersFirestore();
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('fab-bar').classList.add('visible');
@@ -3236,6 +3238,30 @@ async function salvarEmpresasFirestore() {
   } catch(e) { console.warn('Erro ao salvar empresas no Firestore:', e); }
 }
 
+// Salva usuários no Firestore (sem senhas — auth é pelo Firebase Auth)
+async function salvarUsersFirestore() {
+  if (DEMO_MODE) return;
+  try {
+    const lista = store.users.map(u => ({ email: u.email, name: u.name, perfil: u.perfil || 'master' }));
+    await setDoc(doc(db, 'config', 'users'), { lista });
+  } catch(e) { console.warn('Erro ao salvar usuários no Firestore:', e); }
+}
+
+// Carrega usuários do Firestore
+async function carregarUsersFirestore() {
+  if (DEMO_MODE) return;
+  try {
+    const snap = await getDoc(doc(db, 'config', 'users'));
+    if (snap.exists()) {
+      const lista = snap.data().lista || [];
+      if (lista.length > 0) {
+        store.users = lista;
+        localStorage.setItem('fc_users', JSON.stringify(lista));
+      }
+    }
+  } catch(e) { console.warn('Erro ao carregar usuários do Firestore:', e); }
+}
+
 // Carrega empresas do Firestore antes do login (sem autenticação)
 async function carregarEmpresasFirestore() {
   if (DEMO_MODE) { populateLoginEmpresas(); return; }
@@ -3331,7 +3357,6 @@ window.salvarUsuario = async () => {
   if (!nome || !usuario) return toast('Preencha nome e e-mail', false);
 
   if (_editingUserId) {
-    // Edição — apenas atualiza metadados locais (Firebase não permite mudar senha de outro usuário pelo client SDK)
     const idx = store.users.findIndex(x => x.email === _editingUserId);
     if (idx >= 0) {
       store.users[idx].name   = nome;
@@ -3339,6 +3364,7 @@ window.salvarUsuario = async () => {
       if (pass && DEMO_MODE) store.users[idx].pass = pass;
     }
     store.save();
+    salvarUsersFirestore();
     toast('Usuário atualizado!');
     cancelarEdicaoUsuario();
     renderUsuariosList();
@@ -3348,7 +3374,6 @@ window.salvarUsuario = async () => {
 
     if (!DEMO_MODE) {
       try {
-        // Cria no Firebase Auth usando uma instância secundária para não deslogar o usuário atual
         const { initializeApp: initApp, getApp, deleteApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
         const { getAuth: getAuth2, createUserWithEmailAndPassword: createUser, updateProfile: updProfile } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
         let secondApp;
@@ -3364,6 +3389,7 @@ window.salvarUsuario = async () => {
     }
     store.users.push({ email: usuario, pass: DEMO_MODE ? pass : '***', name: nome, perfil });
     store.save();
+    salvarUsersFirestore();
     toast('Usuário criado com sucesso!');
     cancelarEdicaoUsuario();
     renderUsuariosList();
@@ -3376,6 +3402,7 @@ window.deletarUsuario = (email) => {
   const idx = store.users.findIndex(x => x.email === email);
   if (idx >= 0) store.users.splice(idx, 1);
   store.save();
+  salvarUsersFirestore();
   toast('Usuário excluído!');
   renderUsuariosList();
 };
