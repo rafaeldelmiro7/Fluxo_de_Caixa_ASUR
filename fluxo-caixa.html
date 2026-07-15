@@ -1892,6 +1892,14 @@ document.addEventListener('click', e => {
 
 // ==================== APP INIT ====================
 async function enterApp() {
+  // Aguarda empresas carregarem do Firestore (caso sessão tenha sido restaurada automaticamente)
+  if (window._empresasCarregadas) await window._empresasCarregadas;
+
+  // Se currentEmpresa não foi definida (sessão restaurada), usa a primeira disponível
+  if (!currentEmpresa && store.empresas.length > 0) {
+    currentEmpresa = store.empresas[0];
+  }
+
   // Sempre sincroniza empresas no Firestore ao entrar (garante que outros dispositivos vejam)
   if (!DEMO_MODE && store.empresas.length > 0) salvarEmpresasFirestore();
   document.getElementById('auth-screen').style.display = 'none';
@@ -3251,7 +3259,7 @@ async function carregarEmpresasFirestore() {
   populateLoginEmpresas();
 }
 
-carregarEmpresasFirestore();
+window._empresasCarregadas = carregarEmpresasFirestore();
 
 // ==================== PERMISSION GUARD ====================
 function requireMaster(action) {
