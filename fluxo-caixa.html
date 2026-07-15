@@ -1892,6 +1892,8 @@ document.addEventListener('click', e => {
 
 // ==================== APP INIT ====================
 async function enterApp() {
+  // Sempre sincroniza empresas no Firestore ao entrar (garante que outros dispositivos vejam)
+  if (!DEMO_MODE && store.empresas.length > 0) salvarEmpresasFirestore();
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('fab-bar').classList.add('visible');
