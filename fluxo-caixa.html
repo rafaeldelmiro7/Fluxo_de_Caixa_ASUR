@@ -1860,6 +1860,7 @@ window.salvarEmpresa = () => {
     toast('Empresa criada!');
   }
   localStorage.setItem('fc_empresas', JSON.stringify(store.empresas));
+  if (!DEMO_MODE) salvarEmpresasFirestore();
   closeModal('modal-empresa');
   renderEmpresaDropdown();
 };
@@ -1875,6 +1876,7 @@ window.deletarEmpresa = (id) => {
     localStorage.removeItem(`fc_${c}_${id}`)
   );
   localStorage.setItem('fc_empresas', JSON.stringify(store.empresas));
+  if (!DEMO_MODE) salvarEmpresasFirestore();
   toast('Empresa excluída!');
   renderEmpresaDropdown();
 };
@@ -3209,13 +3211,38 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 window.renderLancamentos = renderLancamentos;
 
 // Popular select de empresas na tela de login
-(function populateLoginEmpresas() {
+function populateLoginEmpresas() {
   const sel = document.getElementById('login-empresa');
   if (!sel) return;
   sel.innerHTML = store.empresas.map(e =>
     `<option value="${e.id}">${e.abrev ? e.abrev + ' - ' : ''}${e.nome}</option>`
   ).join('');
-})();
+}
+
+// Salva lista de empresas no Firestore (coleção pública para carregar antes do login)
+async function salvarEmpresasFirestore() {
+  try {
+    await setDoc(doc(db, 'config', 'empresas'), { lista: store.empresas });
+  } catch(e) { console.warn('Erro ao salvar empresas no Firestore:', e); }
+}
+
+// Carrega empresas do Firestore antes do login (sem autenticação)
+async function carregarEmpresasFirestore() {
+  if (DEMO_MODE) { populateLoginEmpresas(); return; }
+  try {
+    const snap = await getDoc(doc(db, 'config', 'empresas'));
+    if (snap.exists()) {
+      const lista = snap.data().lista || [];
+      if (lista.length > 0) {
+        store.empresas = lista;
+        localStorage.setItem('fc_empresas', JSON.stringify(lista));
+      }
+    }
+  } catch(e) { console.warn('Erro ao carregar empresas:', e); }
+  populateLoginEmpresas();
+}
+
+carregarEmpresasFirestore();
 
 // ==================== PERMISSION GUARD ====================
 function requireMaster(action) {
