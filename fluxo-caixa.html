@@ -1733,16 +1733,23 @@ async function loadAll() {
     return;
   }
   const eid = currentEmpresa.id;
-  const [bs, cs, ls, fs] = await Promise.all([
-    getDocs(collection(db, `empresas/${eid}/bancos`)),
-    getDocs(collection(db, `empresas/${eid}/categorias`)),
-    getDocs(query(collection(db, `empresas/${eid}/lancamentos`), orderBy('data'))),
-    getDocs(collection(db, `empresas/${eid}/fornecedores`))
-  ]);
-  bancos      = bs.docs.map(d => ({ id: d.id, ...d.data() }));
-  categorias  = cs.docs.map(d => ({ id: d.id, ...d.data() }));
-  lancamentos = ls.docs.map(d => ({ id: d.id, ...d.data() }));
-  fornecedores= fs.docs.map(d => ({ id: d.id, ...d.data() }));
+  console.log('[FC] loadAll — empresa:', eid, '| DEMO_MODE:', DEMO_MODE);
+  try {
+    const [bs, cs, ls, fs] = await Promise.all([
+      getDocs(collection(db, `empresas/${eid}/bancos`)),
+      getDocs(collection(db, `empresas/${eid}/categorias`)),
+      getDocs(collection(db, `empresas/${eid}/lancamentos`)),
+      getDocs(collection(db, `empresas/${eid}/fornecedores`))
+    ]);
+    bancos      = bs.docs.map(d => ({ id: d.id, ...d.data() }));
+    categorias  = cs.docs.map(d => ({ id: d.id, ...d.data() }));
+    lancamentos = ls.docs.map(d => ({ id: d.id, ...d.data() }));
+    fornecedores= fs.docs.map(d => ({ id: d.id, ...d.data() }));
+    console.log('[FC] Dados carregados — bancos:', bancos.length, '| categorias:', categorias.length, '| lançamentos:', lancamentos.length, '| fornecedores:', fornecedores.length);
+  } catch(e) {
+    console.error('[FC] Erro ao carregar dados do Firestore:', e.code, e.message);
+    toast('Erro ao carregar dados: ' + e.message, false);
+  }
 }
 
 async function saveDoc(col, id, data) {
