@@ -1179,6 +1179,7 @@
             <select id="lanc-parcelar" onchange="onParcelarChange()">
               <option value="0">Único</option>
               <option value="recorrente">Recorrente</option>
+              <option value="diario">Diário</option>
               <option value="misto">Personalizado</option>
               <optgroup label="Parcelado"></optgroup>
             </select>
@@ -1190,6 +1191,15 @@
             <div class="form-group">
               <label>Repetir por quantos meses?</label>
               <input type="number" id="lanc-recorrente-meses" min="2" max="60" value="12" placeholder="Ex: 12">
+            </div>
+          </div>
+        </div>
+
+        <div id="diario-config" style="display:none">
+          <div class="form-row cols-2">
+            <div class="form-group">
+              <label>Repetir por quantos dias?</label>
+              <input type="number" id="lanc-diario-dias" min="2" max="365" value="30" placeholder="Ex: 30">
             </div>
           </div>
         </div>
@@ -2564,6 +2574,7 @@ window.openModalLancamento = (id=null) => {
   document.getElementById('parcelas-list').innerHTML = '';
   document.getElementById('misto-parcelas-list').innerHTML = '';
   document.getElementById('recorrente-config').style.display = 'none';
+  document.getElementById('diario-config').style.display = 'none';
   document.getElementById('misto-config').style.display = 'none';
   document.getElementById('misto-avista').value = '';
   document.getElementById('misto-parcelado').value = '';
@@ -2615,10 +2626,11 @@ window.openModalLancamento = (id=null) => {
 window.onParcelarChange = () => {
   const v = document.getElementById('lanc-parcelar').value;
   document.getElementById('recorrente-config').style.display = v === 'recorrente' ? '' : 'none';
+  document.getElementById('diario-config').style.display = v === 'diario' ? '' : 'none';
   document.getElementById('misto-config').style.display = v === 'misto' ? '' : 'none';
   document.getElementById('parcelas-list').innerHTML = '';
   document.getElementById('misto-parcelas-list').innerHTML = '';
-  if (v !== 'recorrente' && v !== 'misto') updateParcelas();
+  if (v !== 'recorrente' && v !== 'diario' && v !== 'misto') updateParcelas();
   if (v === 'misto') { onMistoChange(); }
 };
 
@@ -2736,6 +2748,20 @@ window.salvarLancamento = async () => {
       if (!DEMO_MODE) lancamentos.push(lanc);
     }
     toast(`${nMeses} lançamentos recorrentes criados!`);
+
+  } else if (modoParc === 'diario') {
+    const nDias = parseInt(document.getElementById('lanc-diario-dias').value) || 30;
+    const grupo = uid();
+    for (let i = 0; i < nDias; i++) {
+      const d = new Date(data + 'T12:00:00');
+      d.setDate(d.getDate() + i);
+      const id = uid();
+      const venc = d.toISOString().slice(0,10);
+      const lanc = { ...base, id, valor: valorPrev, data: venc, dataVencimento: venc, parcelaNum: i+1, parcelaTotal: nDias, parcelaGrupo: grupo };
+      await saveDoc('lancamentos', id, lanc);
+      if (!DEMO_MODE) lancamentos.push(lanc);
+    }
+    toast(`${nDias} lançamentos diários criados!`);
 
   } else if (modoParc === 'misto') {
     const avista = parseValor(document.getElementById('misto-avista'));
