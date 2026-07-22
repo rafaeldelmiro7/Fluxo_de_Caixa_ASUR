@@ -2752,16 +2752,22 @@ window.salvarLancamento = async () => {
   } else if (modoParc === 'diario') {
     const nDias = parseInt(document.getElementById('lanc-diario-dias').value) || 30;
     const grupo = uid();
-    for (let i = 0; i < nDias; i++) {
+    let criados = 0;
+    let offset = 0;
+    while (criados < nDias) {
       const d = new Date(data + 'T12:00:00');
-      d.setDate(d.getDate() + i);
+      d.setDate(d.getDate() + offset);
+      offset++;
+      const diaSemana = d.getDay(); // 0=domingo, 6=sábado
+      if (diaSemana === 0 || diaSemana === 6) continue; // pula fim de semana
+      criados++;
       const id = uid();
       const venc = d.toISOString().slice(0,10);
-      const lanc = { ...base, id, valor: valorPrev, data: venc, dataVencimento: venc, parcelaNum: i+1, parcelaTotal: nDias, parcelaGrupo: grupo };
+      const lanc = { ...base, id, valor: valorPrev, data: venc, dataVencimento: venc, parcelaNum: criados, parcelaTotal: nDias, parcelaGrupo: grupo };
       await saveDoc('lancamentos', id, lanc);
       if (!DEMO_MODE) lancamentos.push(lanc);
     }
-    toast(`${nDias} lançamentos diários criados!`);
+    toast(`${nDias} lançamentos diários criados (dias úteis)!`);
 
   } else if (modoParc === 'misto') {
     const avista = parseValor(document.getElementById('misto-avista'));
