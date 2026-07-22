@@ -939,6 +939,12 @@
           <input type="date" id="f-ate" placeholder="Até">
           <select id="f-tipo"><option value="">Tipo</option><option value="receita">Entrada</option><option value="despesa">Saída</option></select>
           <select id="f-banco"><option value="">Banco</option></select>
+          <select id="f-status">
+            <option value="">Status</option>
+            <option value="pago">Pago</option>
+            <option value="recebido">Recebido</option>
+            <option value="pendente">Pendente</option>
+          </select>
           <button class="btn btn-ghost btn-sm" onclick="renderLancamentos()">Filtrar</button>
           <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Limpar</button>
         </div>
@@ -2047,11 +2053,11 @@ function renderDashboard() {
   // ── KPI Cards ──
   const kpiGrid = document.getElementById('dash-kpi-grid');
   const kpiData = [
-    { label:'Saldo Bancário Consolidado', value: fmt(saldoTotal), accent: saldoTotal>=0?'var(--blue)':'var(--red)',           icon:'🏦', sub:'somente efetivado' },
+    { label:'Saldo Bancário Atual',       value: fmt(saldoTotal), accent: saldoTotal>=0?'var(--blue)':'var(--red)',           icon:'🏦', sub:'' },
     { label:'Entradas Recebidas',         value: fmt(receitas),   accent:'var(--green)',                                     icon:'⬆', sub:'mês atual — efetivado' },
     { label:'Saídas Pagas',               value: fmt(despesas),   accent:'var(--red)',                                       icon:'⬇', sub:'mês atual — efetivado' },
     { label:'Resultado Efetivado',        value: fmt(resultado),  accent: resultado>=0?'var(--green)':'var(--red)',           icon:'📊', sub: resultado>=0?'Superávit':'Déficit' },
-    { label:'Saldo Projetado 30d',        value: fmt(fluxoPrev),  accent: fluxoPrev>=0?'var(--green)':'var(--red)',           icon:'📅', sub:`+${fmt(recPrev30)} / -${fmt(despPrev30)}` },
+    { label:'Despesas a Pagar 30D',       value: fmt(despPrev30), accent:'var(--red)',                                       icon:'📅', sub:'próximos 30 dias' },
   ];
   kpiGrid.style.gridTemplateColumns = 'repeat(5,1fr)';
   kpiGrid.innerHTML = kpiData.map((k,i) => `
@@ -2135,7 +2141,11 @@ function renderDashboard() {
     },
     options: {
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ' '+fmt(ctx.raw) } } },
+      interaction:{ mode:'index', intersect:false },
+      plugins:{ legend:{display:false}, tooltip:{ mode:'index', intersect:false, callbacks:{
+        title: items => `Dia ${items[0].label}`,
+        label: ctx => 'Posição: ' + fmt(ctx.raw)
+      } } },
       scales:{
         x:{ grid:{color:_gridClr}, ticks:{color:_tickClr, font:{size:10}} },
         y:{ beginAtZero:true, grace:'50%', grid:{color:_gridClr}, ticks:{color:_tickClr, font:{size:10}, callback: v => {
@@ -2466,12 +2476,16 @@ function renderLancamentos() {
   const ate = document.getElementById('f-ate').value;
   const tipo = document.getElementById('f-tipo').value;
   const banco = document.getElementById('f-banco').value;
+  const status = document.getElementById('f-status').value;
 
   let filtered = [...lancamentos];
   if (de) filtered = filtered.filter(l => l.data >= de);
   if (ate) filtered = filtered.filter(l => l.data <= ate);
   if (tipo) filtered = filtered.filter(l => l.tipo === tipo);
   if (banco) filtered = filtered.filter(l => l.bancoId === banco);
+  if (status === 'pago')      filtered = filtered.filter(l => l.status === 'completed' && l.tipo === 'despesa');
+  if (status === 'recebido')  filtered = filtered.filter(l => l.status === 'completed' && l.tipo === 'receita');
+  if (status === 'pendente')  filtered = filtered.filter(l => l.status === 'pending');
   filtered.sort((a,b) => b.data.localeCompare(a.data));
 
   const tbody = document.getElementById('lanc-table');
@@ -2482,7 +2496,7 @@ function renderLancamentos() {
 
 window.clearFilters = () => {
   ['f-de','f-ate'].forEach(id => document.getElementById(id).value = '');
-  ['f-tipo','f-banco'].forEach(id => document.getElementById(id).value = '');
+  ['f-tipo','f-banco','f-status'].forEach(id => document.getElementById(id).value = '');
   renderLancamentos();
 };
 
