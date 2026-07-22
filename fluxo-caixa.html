@@ -2503,23 +2503,31 @@ window.deletarLancamento = async (id) => {
     return;
   }
 
-  const msg = l.parcelaGrupo
-    ? `Excluir só esta parcela (${l.parcelaNum}/${l.parcelaTotal}) ou todas do grupo?`
-    : `Excluir lançamento "${l.descricao}"?`;
   if (l.parcelaGrupo) {
-    const todos = confirm(msg + '\n\nOK = excluir todas | Cancelar = só esta');
-    const ids = todos ? lancamentos.filter(x => x.parcelaGrupo === l.parcelaGrupo).map(x => x.id) : [id];
-    for (const i of ids) {
-      await delDoc('lancamentos', i);
-      lancamentos = lancamentos.filter(x => x.id !== i);
-    }
-  } else {
-    if (!confirm(msg)) return;
+    // Ação padrão: excluir apenas esta ocorrência
+    if (!confirm(`Excluir apenas esta ocorrência (${l.parcelaNum}/${l.parcelaTotal}) de "${l.descricao}"?`)) return;
     await delDoc('lancamentos', id);
     lancamentos = lancamentos.filter(x => x.id !== id);
+    toast('Ocorrência excluída!');
+    renderAll();
+
+    // Oferece excluir o grupo inteiro como ação separada e explícita
+    if (confirm(`Deseja também excluir TODAS as demais ocorrências desta recorrência/parcelamento/diário de "${l.descricao}"?\n\nEsta ação não pode ser desfeita.`)) {
+      const resto = lancamentos.filter(x => x.parcelaGrupo === l.parcelaGrupo).map(x => x.id);
+      for (const i of resto) {
+        await delDoc('lancamentos', i);
+        lancamentos = lancamentos.filter(x => x.id !== i);
+      }
+      toast('Demais ocorrências excluídas!');
+      renderAll();
+    }
+  } else {
+    if (!confirm(`Excluir lançamento "${l.descricao}"?`)) return;
+    await delDoc('lancamentos', id);
+    lancamentos = lancamentos.filter(x => x.id !== id);
+    toast('Excluído!');
+    renderAll();
   }
-  toast('Excluído!');
-  renderAll();
 };
 
 // ==================== MODAL LANÇAMENTO ====================
