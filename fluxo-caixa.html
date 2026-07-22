@@ -2504,23 +2504,12 @@ window.deletarLancamento = async (id) => {
   }
 
   if (l.parcelaGrupo) {
-    // Ação padrão: excluir apenas esta ocorrência
-    if (!confirm(`Excluir apenas esta ocorrência (${l.parcelaNum}/${l.parcelaTotal}) de "${l.descricao}"?`)) return;
+    // Exclui SEMPRE apenas esta ocorrência — nunca o grupo inteiro por aqui
+    if (!confirm(`Excluir apenas esta ocorrência (${l.parcelaNum}/${l.parcelaTotal}) de "${l.descricao}"?\n\nAs demais ocorrências desta recorrência/parcelamento/diário NÃO serão afetadas.`)) return;
     await delDoc('lancamentos', id);
     lancamentos = lancamentos.filter(x => x.id !== id);
     toast('Ocorrência excluída!');
     renderAll();
-
-    // Oferece excluir o grupo inteiro como ação separada e explícita
-    if (confirm(`Deseja também excluir TODAS as demais ocorrências desta recorrência/parcelamento/diário de "${l.descricao}"?\n\nEsta ação não pode ser desfeita.`)) {
-      const resto = lancamentos.filter(x => x.parcelaGrupo === l.parcelaGrupo).map(x => x.id);
-      for (const i of resto) {
-        await delDoc('lancamentos', i);
-        lancamentos = lancamentos.filter(x => x.id !== i);
-      }
-      toast('Demais ocorrências excluídas!');
-      renderAll();
-    }
   } else {
     if (!confirm(`Excluir lançamento "${l.descricao}"?`)) return;
     await delDoc('lancamentos', id);
