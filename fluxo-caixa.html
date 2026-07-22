@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fluxo de Caixa</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   /* ═══════════════════════════════════════════════
      DESIGN SYSTEM — Fluxo de Caixa ERP Dark UI
@@ -66,7 +66,7 @@
   /* ── Reset ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background: var(--bg); color: var(--text);
     min-height: 100vh; font-size: 14px; line-height: 1.5;
     -webkit-font-smoothing: antialiased;
@@ -3112,7 +3112,7 @@ window.printRelatorio = () => {
   const el = document.getElementById('rel-print');
   if (!el) return toast('Gere o relatório primeiro', false);
   const w = window.open('', '_blank');
-  w.document.write(`<html><head><title>Relatório Fluxo de Caixa</title><style>body{font-family:'Manrope',sans-serif;background:#fff;color:#111;padding:24px}table{width:100%;border-collapse:collapse}th,td{padding:8px 12px;border-bottom:1px solid #eee;text-align:left}th{font-size:11px;color:#666;text-transform:uppercase}.pos{color:#16a34a}.neg{color:#dc2626}</style></head><body>${el.innerHTML}</body></html>`);
+  w.document.write(`<html><head><title>Relatório Fluxo de Caixa</title><style>body{font-family:'Inter',sans-serif;background:#fff;color:#111;padding:24px}table{width:100%;border-collapse:collapse}th,td{padding:8px 12px;border-bottom:1px solid #eee;text-align:left}th{font-size:11px;color:#666;text-transform:uppercase}.pos{color:#16a34a}.neg{color:#dc2626}</style></head><body>${el.innerHTML}</body></html>`);
   w.document.close();
   w.print();
 };
