@@ -552,7 +552,7 @@
   /* ══════════════════════════════
      LANÇAMENTOS — cabeçalho fixo
   ══════════════════════════════ */
-  #page-lancamentos .table-wrap { max-height: calc(100vh - 270px); overflow-y: auto; }
+  #page-lancamentos .table-wrap { max-height: calc(100vh - 150px); overflow-y: auto; }
   #page-lancamentos thead th { position: sticky; top: 0; z-index: 5; }
 
   /* ══════════════════════════════
@@ -931,14 +931,7 @@
 
       <!-- LANÇAMENTOS -->
       <div class="page" id="page-lancamentos">
-        <div class="section-header">
-          <div class="section-title">Todos os Lançamentos</div>
-          <button class="btn btn-primary" onclick="openModalLancamento()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Novo Lançamento
-          </button>
-        </div>
-        <div class="filters">
+        <div class="filters" style="margin-top:-14px">
           <input type="date" id="f-de" placeholder="De">
           <input type="date" id="f-ate" placeholder="Até">
           <select id="f-tipo"><option value="">Tipo</option><option value="receita">Entrada</option><option value="despesa">Saída</option></select>
@@ -952,6 +945,10 @@
           </select>
           <button class="btn btn-ghost btn-sm" onclick="renderLancamentos()">Filtrar</button>
           <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Limpar</button>
+          <button class="btn btn-primary btn-sm" onclick="openModalLancamento()" style="gap:4px">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo Lançamento
+          </button>
         </div>
         <div class="table-wrap">
           <table>
