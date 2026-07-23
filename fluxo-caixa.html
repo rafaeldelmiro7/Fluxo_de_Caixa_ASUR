@@ -550,6 +550,12 @@
   #diario-content thead th { position: sticky; top: 0; z-index: 5; }
 
   /* ══════════════════════════════
+     LANÇAMENTOS — cabeçalho fixo
+  ══════════════════════════════ */
+  #page-lancamentos .table-wrap { max-height: calc(100vh - 270px); overflow-y: auto; }
+  #page-lancamentos thead th { position: sticky; top: 0; z-index: 5; }
+
+  /* ══════════════════════════════
      PARCELAS
   ══════════════════════════════ */
   .parcela-row { display: grid; grid-template-columns: auto 1fr 1fr 1fr; gap: 12px; align-items: center; margin-bottom: 10px; }
@@ -942,6 +948,7 @@
             <option value="pago">Pago</option>
             <option value="recebido">Recebido</option>
             <option value="pendente">Pendente</option>
+            <option value="atrasado">Atrasado</option>
           </select>
           <button class="btn btn-ghost btn-sm" onclick="renderLancamentos()">Filtrar</button>
           <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Limpar</button>
@@ -2481,9 +2488,11 @@ function renderLancamentos() {
   if (ate) filtered = filtered.filter(l => l.data <= ate);
   if (tipo) filtered = filtered.filter(l => l.tipo === tipo);
   if (banco) filtered = filtered.filter(l => l.bancoId === banco);
+  const hojeStr = new Date().toISOString().slice(0,10);
   if (status === 'pago')      filtered = filtered.filter(l => l.status === 'completed' && l.tipo === 'despesa');
   if (status === 'recebido')  filtered = filtered.filter(l => l.status === 'completed' && l.tipo === 'receita');
-  if (status === 'pendente')  filtered = filtered.filter(l => l.status === 'pending');
+  if (status === 'pendente')  filtered = filtered.filter(l => l.status === 'pending' && (l.dataVencimento||l.data) >= hojeStr);
+  if (status === 'atrasado')  filtered = filtered.filter(l => l.status === 'pending' && (l.dataVencimento||l.data) < hojeStr);
   filtered.sort((a,b) => b.data.localeCompare(a.data));
 
   const tbody = document.getElementById('lanc-table');
