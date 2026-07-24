@@ -546,7 +546,7 @@
   }
   .day-date  { font-size: 13px; font-weight: 700; }
   .day-saldo { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; }
-  #diario-content .table-wrap { max-height: calc(100vh - 220px); overflow-y: auto; }
+  #diario-content .table-wrap { max-height: calc(100vh - 150px); overflow-y: auto; }
   #diario-content thead th { position: sticky; top: 0; z-index: 5; }
 
   /* ══════════════════════════════
@@ -910,11 +910,8 @@
 
       <!-- POSIÇÃO POR DIA -->
       <div class="page" id="page-diario">
-        <div class="section-header">
-          <div>
-            <div class="section-title">Posição por Dia</div>
-            <div class="section-sub">Visão consolidada dia a dia com saldo acumulado</div>
-          </div>
+        <div class="section-header" style="margin-top:-14px">
+          <div class="section-title">Posição por Dia</div>
           <div class="period-selector" style="display:flex;gap:8px;align-items:center">
             <select id="diario-modo" onchange="onDiarioModoChange()">
               <option value="7d">Últimos 7 dias</option>
@@ -945,6 +942,10 @@
           </select>
           <button class="btn btn-ghost btn-sm" onclick="renderLancamentos()">Filtrar</button>
           <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Limpar</button>
+          <div id="lanc-total-box" style="display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;margin-left:auto">
+            <span style="font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Total filtrado</span>
+            <span id="lanc-total-value" class="mono" style="font-size:13px;font-weight:700">R$ 0,00</span>
+          </div>
           <button class="btn btn-primary btn-sm" onclick="openModalLancamento()" style="gap:4px">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Novo Lançamento
@@ -1118,14 +1119,10 @@
           </select>
         </div>
       </div>
-      <div class="form-row cols-3">
+      <div class="form-row cols-2">
         <div class="form-group">
           <label>Valor Previsto (R$) *</label>
           <input type="text" id="lanc-valor" placeholder="0,00" inputmode="numeric" oninput="fmtValorInput(this); updateParcelas()">
-        </div>
-        <div class="form-group">
-          <label>Data de Competência</label>
-          <input type="date" id="lanc-competencia">
         </div>
         <div class="form-group">
           <label>Data de Vencimento *</label>
@@ -2496,6 +2493,25 @@ function renderLancamentos() {
   tbody.innerHTML = filtered.length === 0
     ? `<tr><td colspan="8"><div class="empty-state"><div class="empty-state-icon">📋</div>Nenhum lançamento encontrado</div></td></tr>`
     : filtered.map(l => rowHTML(l, true)).join('');
+
+  updateLancTotal(filtered);
+}
+
+function updateLancTotal(filtered) {
+  const valorDe = l => l.status === 'completed' ? Number(l.valorEfetivado || l.valor) : Number(l.valorPrevisto || l.valor);
+  const rec  = filtered.filter(l => l.tipo === 'receita').reduce((a,l) => a + valorDe(l), 0);
+  const desp = filtered.filter(l => l.tipo === 'despesa').reduce((a,l) => a + valorDe(l), 0);
+
+  let total, cls;
+  if (rec > 0 && desp > 0)      { total = rec - desp; cls = total >= 0 ? 'pos' : 'neg'; }
+  else if (rec > 0)             { total = rec;  cls = 'pos'; }
+  else if (desp > 0)            { total = desp; cls = 'neg'; }
+  else                          { total = 0;    cls = ''; }
+
+  const el = document.getElementById('lanc-total-value');
+  const sinal = cls === 'neg' ? '-' : (cls === 'pos' ? '+' : '');
+  el.textContent = `${sinal}${fmt(Math.abs(total))}`;
+  el.className = `mono ${cls}`;
 }
 
 window.clearFilters = () => {
@@ -2600,13 +2616,11 @@ window.openModalLancamento = (id=null) => {
   document.getElementById('efetivacao-fields').style.display = 'none';
   document.getElementById('lanc-valor-efetivado').value = '';
   document.getElementById('lanc-data-efetivacao').value = '';
-  document.getElementById('lanc-competencia').value = '';
   document.getElementById('lanc-forma').value = '';
 
   if (existing) {
     document.getElementById('lanc-tipo').value = existing.tipo;
     document.getElementById('lanc-data').value = existing.dataVencimento || existing.data;
-    document.getElementById('lanc-competencia').value = existing.dataCompetencia || existing.data || '';
     document.getElementById('lanc-desc').value = existing.descricao || '';
     document.getElementById('lanc-obs').value = existing.obs || '';
     document.getElementById('lanc-fornecedor').value = existing.fornecedorId || '';
@@ -2710,7 +2724,6 @@ window.salvarLancamento = async () => {
   const bancoId    = document.getElementById('lanc-banco').value;
   const valorPrev  = parseValor(document.getElementById('lanc-valor'));
   const data       = document.getElementById('lanc-data').value;
-  const dataComp   = document.getElementById('lanc-competencia').value;
   const fornecedorId = document.getElementById('lanc-fornecedor').value;
   const obs        = document.getElementById('lanc-obs').value.trim();
   const forma      = document.getElementById('lanc-forma').value;
@@ -2734,7 +2747,7 @@ window.salvarLancamento = async () => {
     const idx = lancamentos.findIndex(l => l.id === editingLancId);
     if (idx !== -1) {
       const updated = { ...lancamentos[idx], tipo, descricao: desc, categoriaId: catId, bancoId, fornecedorId, obs,
-        valorPrevisto: valorPrev, valor: valorPrev, dataVencimento: data, dataCompetencia: dataComp,
+        valorPrevisto: valorPrev, valor: valorPrev, dataVencimento: data,
         formaPagamento: forma, status, valorEfetivado: valorEf, dataEfetivacao: dataEf, bancoEfetivadoId: bancoEfId };
       await saveDoc('lancamentos', editingLancId, updated);
       lancamentos[idx] = updated;
@@ -2747,7 +2760,7 @@ window.salvarLancamento = async () => {
   }
 
   const base = { tipo, descricao: desc, categoriaId: catId, bancoId, fornecedorId, obs, criadoPor, criadoEm: today(),
-    valorPrevisto: valorPrev, valor: valorPrev, dataVencimento: data, dataCompetencia: dataComp,
+    valorPrevisto: valorPrev, valor: valorPrev, dataVencimento: data,
     formaPagamento: forma, status, valorEfetivado: valorEf, dataEfetivacao: dataEf, bancoEfetivadoId: bancoEfId };
 
   if (modoParc === 'recorrente') {
