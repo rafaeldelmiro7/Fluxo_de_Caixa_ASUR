@@ -3147,22 +3147,52 @@ window.printRelatorio = () => {
 };
 
 // ==================== EXPORTAR / IMPORTAR ====================
+// Substitui por completo uma coleção de uma empresa no Firestore pelos itens informados
+async function replaceFirestoreCollection(col, eid, items) {
+  const snap = await getDocs(collection(db, `empresas/${eid}/${col}`));
+  await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+  await Promise.all(items.map(item => {
+    const { id, ...rest } = item;
+    return setDoc(doc(db, `empresas/${eid}/${col}`, id || uid()), rest);
+  }));
+}
+
+// Busca os dados (bancos, categorias, lançamentos, fornecedores) de uma empresa
+async function fetchDadosEmpresa(eid) {
+  if (DEMO_MODE) {
+    return {
+      bancos:       JSON.parse(localStorage.getItem(`fc_bancos_${eid}`)       || '[]'),
+      categorias:   JSON.parse(localStorage.getItem(`fc_categorias_${eid}`)   || '[]'),
+      lancamentos:  JSON.parse(localStorage.getItem(`fc_lancamentos_${eid}`)  || '[]'),
+      fornecedores: JSON.parse(localStorage.getItem(`fc_fornecedores_${eid}`) || '[]'),
+    };
+  }
+  const [bs, cs, ls, fs] = await Promise.all([
+    getDocs(collection(db, `empresas/${eid}/bancos`)),
+    getDocs(collection(db, `empresas/${eid}/categorias`)),
+    getDocs(collection(db, `empresas/${eid}/lancamentos`)),
+    getDocs(collection(db, `empresas/${eid}/fornecedores`)),
+  ]);
+  return {
+    bancos:       bs.docs.map(d => ({ id: d.id, ...d.data() })),
+    categorias:   cs.docs.map(d => ({ id: d.id, ...d.data() })),
+    lancamentos:  ls.docs.map(d => ({ id: d.id, ...d.data() })),
+    fornecedores: fs.docs.map(d => ({ id: d.id, ...d.data() })),
+  };
+}
+
 window.exportarDados = () => {
-  const eid = currentEmpresa?.id;
-  if (!eid) return toast('Nenhuma empresa selecionada', false);
+  if (!currentEmpresa) return toast('Nenhuma empresa selecionada', false);
   const payload = {
     versao: _EMPRESA_SEED_V,
     exportadoEm: new Date().toISOString(),
     empresa: currentEmpresa,
-    bancos: store.bancos,
-    categorias: store.categorias,
-    fornecedores: store.fornecedores,
-    lancamentos: store.lancamentos,
+    bancos, categorias, fornecedores, lancamentos,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  const nome = (store.empresaAtual?.nome || 'empresa').replace(/\s+/g, '_');
+  const nome = (currentEmpresa.nome || 'empresa').replace(/\s+/g, '_');
   a.href     = url;
   a.download = `fluxo_caixa_${nome}_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
@@ -3184,11 +3214,32 @@ window.importarDados = (input) => {
       if (!eid) return toast('Nenhuma empresa selecionada', false);
       const confirmar = confirm(`Importar dados do arquivo "${file.name}"?\n\nOs dados atuais serão SUBSTITUÍDOS. Esta ação não pode ser desfeita.`);
       if (!confirmar) { input.value = ''; return; }
-      store.bancos        = data.bancos        || [];
-      store.categorias    = data.categorias    || [];
-      store.fornecedores  = data.fornecedores  || [];
-      store.lancamentos   = data.lancamentos   || [];
-      await store.save();
+
+      const novoBancos       = data.bancos       || [];
+      const novoCategorias   = data.categorias   || [];
+      const novoFornecedores = data.fornecedores || [];
+      const novoLancamentos  = data.lancamentos  || [];
+
+      if (DEMO_MODE) {
+        store.bancos        = novoBancos;
+        store.categorias    = novoCategorias;
+        store.fornecedores  = novoFornecedores;
+        store.lancamentos   = novoLancamentos;
+        store.save();
+      } else {
+        toast('Importando dados no servidor, aguarde...');
+        await Promise.all([
+          replaceFirestoreCollection('bancos',       eid, novoBancos),
+          replaceFirestoreCollection('categorias',   eid, novoCategorias),
+          replaceFirestoreCollection('fornecedores', eid, novoFornecedores),
+          replaceFirestoreCollection('lancamentos',  eid, novoLancamentos),
+        ]);
+      }
+
+      bancos        = novoBancos;
+      categorias    = novoCategorias;
+      fornecedores  = novoFornecedores;
+      lancamentos   = novoLancamentos;
       renderAll();
       toast('Importação concluída com sucesso!');
     } catch (err) {
@@ -3199,18 +3250,18 @@ window.importarDados = (input) => {
   reader.readAsText(file);
 };
 
-window.exportarBackup = () => {
-  const eid = store.empresaAtual?.id;
+window.exportarBackup = async () => {
   const empresas = store.empresas || [];
   const dadosPorEmpresa = {};
-  empresas.forEach(emp => {
-    dadosPorEmpresa[emp.id] = {
-      bancos:       JSON.parse(localStorage.getItem(`fc_bancos_${emp.id}`)       || '[]'),
-      categorias:   JSON.parse(localStorage.getItem(`fc_categorias_${emp.id}`)   || '[]'),
-      lancamentos:  JSON.parse(localStorage.getItem(`fc_lancamentos_${emp.id}`)  || '[]'),
-      fornecedores: JSON.parse(localStorage.getItem(`fc_fornecedores_${emp.id}`) || '[]'),
-    };
-  });
+  if (!DEMO_MODE) toast('Gerando backup completo, aguarde...');
+  for (const emp of empresas) {
+    try {
+      dadosPorEmpresa[emp.id] = await fetchDadosEmpresa(emp.id);
+    } catch (e) {
+      console.error(`[FC] Erro ao buscar dados da empresa ${emp.id}:`, e);
+      dadosPorEmpresa[emp.id] = { bancos: [], categorias: [], lancamentos: [], fornecedores: [] };
+    }
+  }
   const payload = {
     tipo: 'backup_completo',
     versao: _EMPRESA_SEED_V,
@@ -3241,27 +3292,42 @@ window.restaurarBackup = (input) => {
       }
       const confirmar = confirm(`Restaurar backup de ${data.exportadoEm?.slice(0,10) || 'data desconhecida'}?\n\nTODOS os dados atuais serão APAGADOS e substituídos pelo backup.\n\nEsta ação não pode ser desfeita.`);
       if (!confirmar) { input.value = ''; return; }
-      // Limpa empresas existentes
-      (store.empresas || []).forEach(emp => {
-        localStorage.removeItem(`fc_bancos_${emp.id}`);
-        localStorage.removeItem(`fc_categorias_${emp.id}`);
-        localStorage.removeItem(`fc_lancamentos_${emp.id}`);
-        localStorage.removeItem(`fc_fornecedores_${emp.id}`);
-        localStorage.removeItem(`fc_data_v_${emp.id}`);
-      });
-      // Restaura empresas e usuários
-      localStorage.setItem('fc_empresas', JSON.stringify(data.empresas));
-      localStorage.setItem('fc_users',    JSON.stringify(data.users || []));
-      localStorage.setItem('fc_empresas_v', String(data.versao || _EMPRESA_SEED_V));
-      // Restaura dados por empresa
-      data.empresas.forEach(emp => {
-        const d = data.dadosPorEmpresa[emp.id] || {};
-        localStorage.setItem(`fc_bancos_${emp.id}`,       JSON.stringify(d.bancos       || []));
-        localStorage.setItem(`fc_categorias_${emp.id}`,   JSON.stringify(d.categorias   || []));
-        localStorage.setItem(`fc_lancamentos_${emp.id}`,  JSON.stringify(d.lancamentos  || []));
-        localStorage.setItem(`fc_fornecedores_${emp.id}`, JSON.stringify(d.fornecedores || []));
-        localStorage.setItem(`fc_data_v_${emp.id}`,       String(data.versao || _EMPRESA_SEED_V));
-      });
+
+      if (DEMO_MODE) {
+        // Limpa empresas existentes
+        (store.empresas || []).forEach(emp => {
+          localStorage.removeItem(`fc_bancos_${emp.id}`);
+          localStorage.removeItem(`fc_categorias_${emp.id}`);
+          localStorage.removeItem(`fc_lancamentos_${emp.id}`);
+          localStorage.removeItem(`fc_fornecedores_${emp.id}`);
+          localStorage.removeItem(`fc_data_v_${emp.id}`);
+        });
+        localStorage.setItem('fc_empresas', JSON.stringify(data.empresas));
+        localStorage.setItem('fc_users',    JSON.stringify(data.users || []));
+        localStorage.setItem('fc_empresas_v', String(data.versao || _EMPRESA_SEED_V));
+        data.empresas.forEach(emp => {
+          const d = data.dadosPorEmpresa[emp.id] || {};
+          localStorage.setItem(`fc_bancos_${emp.id}`,       JSON.stringify(d.bancos       || []));
+          localStorage.setItem(`fc_categorias_${emp.id}`,   JSON.stringify(d.categorias   || []));
+          localStorage.setItem(`fc_lancamentos_${emp.id}`,  JSON.stringify(d.lancamentos  || []));
+          localStorage.setItem(`fc_fornecedores_${emp.id}`, JSON.stringify(d.fornecedores || []));
+          localStorage.setItem(`fc_data_v_${emp.id}`,       String(data.versao || _EMPRESA_SEED_V));
+        });
+      } else {
+        toast('Restaurando backup no servidor, isso pode demorar...');
+        await setDoc(doc(db, 'config', 'empresas'), { lista: data.empresas });
+        await setDoc(doc(db, 'config', 'users'),    { lista: data.users || [] });
+        for (const emp of data.empresas) {
+          const d = data.dadosPorEmpresa[emp.id] || {};
+          await Promise.all([
+            replaceFirestoreCollection('bancos',       emp.id, d.bancos       || []),
+            replaceFirestoreCollection('categorias',   emp.id, d.categorias   || []),
+            replaceFirestoreCollection('lancamentos',  emp.id, d.lancamentos  || []),
+            replaceFirestoreCollection('fornecedores', emp.id, d.fornecedores || []),
+          ]);
+        }
+      }
+
       toast('Backup restaurado! Recarregando...');
       setTimeout(() => location.reload(), 1200);
     } catch (err) {
