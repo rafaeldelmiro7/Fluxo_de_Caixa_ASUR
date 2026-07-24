@@ -1,0 +1,5 @@
+node_modules/
+
+# Backups gerados localmente ou pelo workflow de backup — nunca devem ir para o repo público
+backup_fluxo_caixa_*.json
+scripts/backup-firestore/service-account.json

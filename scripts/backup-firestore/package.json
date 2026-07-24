@@ -1,0 +1,10 @@
+{
+  "name": "backup-firestore",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Gera um backup completo do Firestore do Fluxo de Caixa (mesmo formato do botao 'Backup Completo' do app) e envia para o Google Drive via rclone.",
+  "dependencies": {
+    "firebase-admin": "^12.6.0"
+  }
+}

@@ -1,0 +1,53 @@
+name: Backup diário do Firestore para o Google Drive
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # ~02:00 em Rondônia (UTC-4)
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependências do script de backup
+        working-directory: scripts/backup-firestore
+        run: npm install
+
+      - name: Gravar credencial do Firebase
+        working-directory: scripts/backup-firestore
+        run: echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > service-account.json
+        env:
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+
+      - name: Gerar backup do Firestore
+        working-directory: scripts/backup-firestore
+        run: node backup.mjs
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: service-account.json
+
+      - name: Remover credencial do Firebase
+        if: always()
+        working-directory: scripts/backup-firestore
+        run: rm -f service-account.json
+
+      - name: Instalar rclone
+        run: curl https://rclone.org/install.sh | sudo bash
+
+      - name: Configurar rclone
+        run: |
+          mkdir -p ~/.config/rclone
+          printf '%s' "$RCLONE_CONFIG" > ~/.config/rclone/rclone.conf
+        env:
+          RCLONE_CONFIG: ${{ secrets.RCLONE_CONFIG }}
+
+      - name: Enviar backup para o Google Drive
+        working-directory: scripts/backup-firestore
+        run: rclone copy backup_fluxo_caixa_*.json remote:FluxoCaixaBackups/ --progress
