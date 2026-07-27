@@ -2120,9 +2120,14 @@ function renderDashboard() {
   let saldoAcum = saldoTotal - receitas + despesas;
   const saldoDia = dayLabels.map(d => {
     const dataStr = `${ano}-${String(mes+1).padStart(2,'0')}-${d}`;
-    lancamentos.filter(l => l.data === dataStr).forEach(l => {
-      if (l.tipo==='receita') saldoAcum += Number(l.valor);
-      else saldoAcum -= Number(l.valor);
+    lancamentos.filter(l => {
+      if (l.status === 'cancelled') return false;
+      const refDate = l.status === 'completed' ? (l.dataEfetivacao || l.dataVencimento || l.data) : (l.dataVencimento || l.data);
+      return refDate === dataStr;
+    }).forEach(l => {
+      const val = l.status === 'completed' ? Number(l.valorEfetivado || l.valor) : Number(l.valorPrevisto || l.valor);
+      if (l.tipo === 'receita' || l.tipo === 'transf-entrada') saldoAcum += val;
+      else if (l.tipo === 'despesa' || l.tipo === 'transf-saida') saldoAcum -= val;
     });
     return saldoAcum;
   });
