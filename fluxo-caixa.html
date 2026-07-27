@@ -943,6 +943,7 @@
           </select>
           <button class="btn btn-ghost btn-sm" onclick="renderLancamentos()">Filtrar</button>
           <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Limpar</button>
+          <button class="btn btn-danger btn-sm" id="lanc-bulk-delete-btn" style="display:none" onclick="excluirSelecionados()">🗑 Excluir Selecionados (<span id="lanc-bulk-delete-count">0</span>)</button>
           <input type="text" id="f-valor" placeholder="Pesquisar" oninput="renderLancamentos()" style="margin-left:auto;width:160px">
           <div id="lanc-total-box" style="display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px">
             <span style="font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Total filtrado</span>
@@ -956,6 +957,7 @@
         <div class="table-wrap">
           <table>
             <thead><tr>
+              <th style="width:32px"><input type="checkbox" id="lanc-check-all" onchange="toggleSelectAllLanc(this)"></th>
               <th>Vencimento</th><th>Descrição</th><th>Categoria</th><th>Status</th><th>Banco</th><th>Fornecedor</th><th>Parcela</th><th>Valor</th><th></th>
             </tr></thead>
             <tbody id="lanc-table"></tbody>
@@ -2323,6 +2325,7 @@ function rowHTML(l, full=true) {
     ? `<button class="btn btn-ghost btn-icon btn-sm" onclick="window.openModalEfetivar('${l.id}')" title="Efetivar" style="color:var(--green)">✓</button>`
     : '';
   return `<tr style="${l.status==='cancelled'?'opacity:.45':''}">
+    ${full ? `<td><input type="checkbox" class="lanc-check-row" value="${l.id}" onchange="updateLancSelectionUI()"></td>` : ''}
     <td style="white-space:nowrap">${formatDate(venc)}</td>
     <td><span class="tag-tipo ${l.tipo==='receita'?'tag-rec':'tag-desp'}"></span>${l.descricao}</td>
     <td><span class="badge ${l.tipo==='receita'?'badge-green':'badge-red'}">${cat?.nome || '-'}</span></td>
@@ -2436,7 +2439,6 @@ window.renderDiario = function() {
       <td style="text-align:right;text-transform:none;letter-spacing:0;${topNegBg}">
         ${dayIdx===0 ? `<div class="day-saldo ${saldoAcum>=0?'pos':'neg'}"><span style="font-size:11px;color:var(--text2);font-weight:400">Efetivado: </span>${fmt(saldoAcum)}</div>` : ''}
       </td>
-      <td style="${topNegBg}"></td>
     </tr>`;
 
     rows += items.map(l => {
@@ -2445,9 +2447,6 @@ window.renderDiario = function() {
       const forn   = fornecedores.find(f => f.id === l.fornecedorId)?.nome || l.fornecedor || '-';
       const parcStr= l.parcelaTotal > 0 ? `${l.parcelaNum}/${l.parcelaTotal}` : '-';
       const val    = l.status==='completed' ? Number(l.valorEfetivado||l.valor) : Number(l.valorPrevisto||l.valor);
-      const efBtn  = l.status === 'pending'
-        ? `<button class="btn btn-ghost btn-icon btn-sm" onclick="window.openModalEfetivar('${l.id}')" title="Efetivar" style="color:var(--green)">✓</button>`
-        : '';
       return `<tr>
         <td><span class="tag-tipo ${l.tipo==='receita'?'tag-rec':'tag-desp'}"></span>${l.descricao}</td>
         <td><span class="badge ${l.tipo==='receita'?'badge-green':'badge-red'}" style="font-size:10px">${cat?.nome||'-'}</span></td>
@@ -2458,7 +2457,6 @@ window.renderDiario = function() {
         <td class="mono pos">${l.tipo==='receita' ? '+'+fmt(val) : ''}</td>
         <td class="mono neg">${l.tipo==='despesa' ? '-'+fmt(val) : ''}</td>
         <td></td>
-        <td style="white-space:nowrap;display:flex;gap:2px">${efBtn}<button class="btn btn-ghost btn-icon btn-sm" onclick="window.openModalLancamento('${l.id}')" title="Editar">✏️</button><button class="btn btn-ghost btn-icon btn-sm" onclick="window.deletarLancamento('${l.id}')" title="Excluir">🗑</button></td>
       </tr>`;
     }).join('');
 
@@ -2467,14 +2465,13 @@ window.renderDiario = function() {
       <td style="text-align:right;text-transform:none;letter-spacing:0;${bottomNegBg}">
         <div class="day-saldo" style="color:var(--amber)"><span style="font-size:11px;color:var(--text2);font-weight:400">Projetado: </span>${fmt(projetado)}</div>
       </td>
-      <td style="${bottomNegBg}"></td>
     </tr>`;
   });
 
   document.getElementById('diario-content').innerHTML = `
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Descrição</th><th>Categoria</th><th>Status</th><th>Banco</th><th>Fornecedor</th><th>Parcela</th><th>Entradas</th><th>Saídas</th><th>Valor</th><th></th></tr></thead>
+        <thead><tr><th>Descrição</th><th>Categoria</th><th>Status</th><th>Banco</th><th>Fornecedor</th><th>Parcela</th><th>Entradas</th><th>Saídas</th><th>Valor</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
@@ -2517,11 +2514,46 @@ function renderLancamentos() {
 
   const tbody = document.getElementById('lanc-table');
   tbody.innerHTML = filtered.length === 0
-    ? `<tr><td colspan="8"><div class="empty-state"><div class="empty-state-icon">📋</div>Nenhum lançamento encontrado</div></td></tr>`
+    ? `<tr><td colspan="10"><div class="empty-state"><div class="empty-state-icon">📋</div>Nenhum lançamento encontrado</div></td></tr>`
     : filtered.map(l => rowHTML(l, true)).join('');
 
+  document.getElementById('lanc-check-all').checked = false;
+  updateLancSelectionUI();
   updateLancTotal(filtered);
 }
+
+window.toggleSelectAllLanc = (checkbox) => {
+  document.querySelectorAll('.lanc-check-row').forEach(c => c.checked = checkbox.checked);
+  updateLancSelectionUI();
+};
+
+window.updateLancSelectionUI = () => {
+  const checks = document.querySelectorAll('.lanc-check-row');
+  const checked = document.querySelectorAll('.lanc-check-row:checked');
+  const btn = document.getElementById('lanc-bulk-delete-btn');
+  document.getElementById('lanc-bulk-delete-count').textContent = checked.length;
+  btn.style.display = checked.length > 0 ? '' : 'none';
+  const allChecked = checks.length > 0 && checked.length === checks.length;
+  document.getElementById('lanc-check-all').checked = allChecked;
+};
+
+window.excluirSelecionados = async () => {
+  if (!requireMaster()) return;
+  const ids = [...document.querySelectorAll('.lanc-check-row:checked')].map(c => c.value);
+  if (ids.length === 0) return;
+
+  const nCompleted = ids.filter(id => lancamentos.find(l => l.id === id)?.status === 'completed').length;
+  const msg = nCompleted > 0
+    ? `Excluir ${ids.length} lançamento(s) selecionado(s)?\n\n${nCompleted} já efetivado(s) será(ão) cancelado(s) e o saldo será estornado automaticamente.`
+    : `Excluir ${ids.length} lançamento(s) selecionado(s)?`;
+  if (!confirm(msg)) return;
+
+  for (const id of ids) {
+    await _removerLancamentoSemConfirm(id);
+  }
+  toast(`${ids.length} lançamento(s) excluído(s)!`);
+  renderAll();
+};
 
 function updateLancTotal(filtered) {
   const valorDe = l => l.status === 'completed' ? Number(l.valorEfetivado || l.valor) : Number(l.valorPrevisto || l.valor);
@@ -2547,6 +2579,20 @@ window.clearFilters = () => {
   renderLancamentos();
 };
 
+async function _removerLancamentoSemConfirm(id) {
+  const l = lancamentos.find(x => x.id === id);
+  if (!l) return;
+  if (l.status === 'completed') {
+    const updated = { ...l, status: 'cancelled' };
+    await saveDoc('lancamentos', id, updated);
+    const idx = lancamentos.findIndex(x => x.id === id);
+    if (idx >= 0) lancamentos[idx] = updated;
+  } else {
+    await delDoc('lancamentos', id);
+    lancamentos = lancamentos.filter(x => x.id !== id);
+  }
+}
+
 window.deletarLancamento = async (id) => {
   if (!requireMaster()) return;
   const l = lancamentos.find(x => x.id === id);
@@ -2555,10 +2601,7 @@ window.deletarLancamento = async (id) => {
   if (l.status === 'completed') {
     const ok = confirm(`"${l.descricao}" já foi efetivado e afeta o saldo bancário.\n\nDeseja cancelar este lançamento? O saldo será estornado automaticamente.`);
     if (!ok) return;
-    const updated = { ...l, status: 'cancelled' };
-    await saveDoc('lancamentos', id, updated);
-    const idx = lancamentos.findIndex(x => x.id === id);
-    if (idx >= 0) lancamentos[idx] = updated;
+    await _removerLancamentoSemConfirm(id);
     toast('Lançamento cancelado — saldo estornado.');
     renderAll();
     return;
@@ -2567,14 +2610,12 @@ window.deletarLancamento = async (id) => {
   if (l.parcelaGrupo) {
     // Exclui SEMPRE apenas esta ocorrência — nunca o grupo inteiro por aqui
     if (!confirm(`Excluir apenas esta ocorrência (${l.parcelaNum}/${l.parcelaTotal}) de "${l.descricao}"?\n\nAs demais ocorrências desta recorrência/parcelamento/diário NÃO serão afetadas.`)) return;
-    await delDoc('lancamentos', id);
-    lancamentos = lancamentos.filter(x => x.id !== id);
+    await _removerLancamentoSemConfirm(id);
     toast('Ocorrência excluída!');
     renderAll();
   } else {
     if (!confirm(`Excluir lançamento "${l.descricao}"?`)) return;
-    await delDoc('lancamentos', id);
-    lancamentos = lancamentos.filter(x => x.id !== id);
+    await _removerLancamentoSemConfirm(id);
     toast('Excluído!');
     renderAll();
   }
