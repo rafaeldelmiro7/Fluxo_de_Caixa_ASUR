@@ -2405,7 +2405,7 @@ window.renderDiario = function() {
 
   const weekdays = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   let rows = '';
-  sortedDays.forEach(day => {
+  sortedDays.forEach((day, dayIdx) => {
     const items = days[day];
     // Saldo efetivado: apenas completed movimentam
     const dayEfet = items.filter(l => l.status === 'completed');
@@ -2422,21 +2422,19 @@ window.renderDiario = function() {
 
     const d = new Date(day + 'T12:00:00');
     const wd = weekdays[d.getDay()];
+    const negativo = saldoAcum < 0;
+    const negBg = negativo ? 'background:var(--red-dim) !important;' : '';
 
     rows += `<tr class="separator-row">
-      <td colspan="8">
-        <div style="display:flex;align-items:center;justify-content:space-between;text-transform:none;letter-spacing:0;font-size:13px">
-          <div>
-            <span class="day-date">${wd}, ${formatDate(day)}</span>
-            <span style="font-size:11px;color:var(--text3);margin-left:10px">${items.length} lançamento(s)</span>
-          </div>
-          <div style="display:flex;gap:20px;align-items:center">
-            ${pendDia.length ? `<span style="font-size:11px;color:var(--amber)">Projetado: <strong>${fmt(projetado)}</strong></span>` : ''}
-            <span style="font-size:12px;color:var(--text2)">Efetivado: </span>
-            <span class="day-saldo ${saldoAcum>=0?'pos':'neg'}">${fmt(saldoAcum)}</span>
-          </div>
-        </div>
+      <td colspan="8" style="text-transform:none;letter-spacing:0;${negBg}">
+        <span class="day-date">${wd}, ${formatDate(day)}</span>
+        <span style="font-size:11px;color:var(--text3);margin-left:10px">${items.length} lançamento(s)</span>
       </td>
+      <td style="text-align:right;text-transform:none;letter-spacing:0;${negBg}">
+        ${pendDia.length ? `<div class="day-saldo" style="color:var(--amber)">${fmt(projetado)}</div>` : ''}
+        <div class="day-saldo ${saldoAcum>=0?'pos':'neg'}">${dayIdx===0 ? '<span style="font-size:11px;color:var(--text2);font-weight:400">Efetivado: </span>' : ''}${fmt(saldoAcum)}</div>
+      </td>
+      <td style="${negBg}"></td>
     </tr>`;
 
     rows += items.map(l => {
@@ -2455,7 +2453,9 @@ window.renderDiario = function() {
         <td style="font-size:12px;color:var(--text2)">${banco?.nome||'-'}</td>
         <td style="font-size:12px;color:var(--text2)">${forn}</td>
         <td style="font-size:12px;color:var(--text2)">${parcStr}</td>
-        <td class="mono ${l.tipo==='receita'?'pos':'neg'}">${l.tipo==='receita'?'+':'-'}${fmt(val)}</td>
+        <td class="mono pos">${l.tipo==='receita' ? '+'+fmt(val) : ''}</td>
+        <td class="mono neg">${l.tipo==='despesa' ? '-'+fmt(val) : ''}</td>
+        <td></td>
         <td style="white-space:nowrap;display:flex;gap:2px">${efBtn}<button class="btn btn-ghost btn-icon btn-sm" onclick="window.openModalLancamento('${l.id}')" title="Editar">✏️</button><button class="btn btn-ghost btn-icon btn-sm" onclick="window.deletarLancamento('${l.id}')" title="Excluir">🗑</button></td>
       </tr>`;
     }).join('');
@@ -2464,7 +2464,7 @@ window.renderDiario = function() {
   document.getElementById('diario-content').innerHTML = `
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Descrição</th><th>Categoria</th><th>Status</th><th>Banco</th><th>Fornecedor</th><th>Parcela</th><th>Valor</th><th></th></tr></thead>
+        <thead><tr><th>Descrição</th><th>Categoria</th><th>Status</th><th>Banco</th><th>Fornecedor</th><th>Parcela</th><th>Entradas</th><th>Saídas</th><th>Valor</th><th></th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
