@@ -2422,19 +2422,18 @@ window.renderDiario = function() {
 
     const d = new Date(day + 'T12:00:00');
     const wd = weekdays[d.getDay()];
-    const negativo = saldoAcum < 0;
-    const negBg = negativo ? 'background:var(--red-dim) !important;' : '';
+    const topNegBg = (dayIdx === 0 && saldoAcum < 0) ? 'background:var(--red-dim) !important;' : '';
+    const bottomNegBg = projetado < 0 ? 'background:var(--red-dim) !important;' : '';
 
     rows += `<tr class="separator-row">
-      <td colspan="8" style="text-transform:none;letter-spacing:0;${negBg}">
+      <td colspan="8" style="text-transform:none;letter-spacing:0;${topNegBg}">
         <span class="day-date">${wd}, ${formatDate(day)}</span>
         <span style="font-size:11px;color:var(--text3);margin-left:10px">${items.length} lançamento(s)</span>
       </td>
-      <td style="text-align:right;text-transform:none;letter-spacing:0;${negBg}">
-        ${pendDia.length ? `<div class="day-saldo" style="color:var(--amber)">${fmt(projetado)}</div>` : ''}
-        <div class="day-saldo ${saldoAcum>=0?'pos':'neg'}">${dayIdx===0 ? '<span style="font-size:11px;color:var(--text2);font-weight:400">Efetivado: </span>' : ''}${fmt(saldoAcum)}</div>
+      <td style="text-align:right;text-transform:none;letter-spacing:0;${topNegBg}">
+        ${dayIdx===0 ? `<div class="day-saldo ${saldoAcum>=0?'pos':'neg'}"><span style="font-size:11px;color:var(--text2);font-weight:400">Efetivado: </span>${fmt(saldoAcum)}</div>` : ''}
       </td>
-      <td style="${negBg}"></td>
+      <td style="${topNegBg}"></td>
     </tr>`;
 
     rows += items.map(l => {
@@ -2459,6 +2458,14 @@ window.renderDiario = function() {
         <td style="white-space:nowrap;display:flex;gap:2px">${efBtn}<button class="btn btn-ghost btn-icon btn-sm" onclick="window.openModalLancamento('${l.id}')" title="Editar">✏️</button><button class="btn btn-ghost btn-icon btn-sm" onclick="window.deletarLancamento('${l.id}')" title="Excluir">🗑</button></td>
       </tr>`;
     }).join('');
+
+    rows += `<tr class="separator-row">
+      <td colspan="8" style="${bottomNegBg}"></td>
+      <td style="text-align:right;text-transform:none;letter-spacing:0;${bottomNegBg}">
+        <div class="day-saldo" style="color:var(--amber)"><span style="font-size:11px;color:var(--text2);font-weight:400">Projetado: </span>${fmt(projetado)}</div>
+      </td>
+      <td style="${bottomNegBg}"></td>
+    </tr>`;
   });
 
   document.getElementById('diario-content').innerHTML = `
