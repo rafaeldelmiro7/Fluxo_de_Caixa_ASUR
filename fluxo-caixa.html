@@ -1735,9 +1735,12 @@ window.doLogout = async () => {
 };
 
 if (!DEMO_MODE) {
-  onAuthStateChanged(auth, (user) => {
-    if (user) { currentUser = user; enterApp(); }
-    else { document.getElementById('auth-screen').style.display = 'flex'; }
+  // Força pedir login/senha a cada carregamento da página — não reaproveita sessão persistida
+  signOut(auth).finally(() => {
+    onAuthStateChanged(auth, (user) => {
+      if (user) { currentUser = user; enterApp(); }
+      else { document.getElementById('auth-screen').style.display = 'flex'; }
+    });
   });
 }
 
