@@ -2422,8 +2422,8 @@ window.renderDiario = function() {
 
     const d = new Date(day + 'T12:00:00');
     const wd = weekdays[d.getDay()];
-    const topNegBg = (dayIdx === 0 && saldoAcum < 0) ? 'background:var(--red-dim) !important;' : '';
-    const bottomNegBg = projetado < 0 ? 'background:var(--red-dim) !important;' : '';
+    const topNegBg = (dayIdx === 0 && saldoAcum < 0) ? 'background:rgba(245,80,106,.32) !important;' : '';
+    const bottomNegBg = projetado < 0 ? 'background:rgba(245,80,106,.32) !important;' : '';
 
     rows += `<tr class="separator-row">
       <td colspan="8" style="text-transform:none;letter-spacing:0;${topNegBg}">
